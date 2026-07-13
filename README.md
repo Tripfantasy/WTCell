@@ -18,6 +18,8 @@ WTCell allows research groups to collaboratively submit, standardize, and query 
 - [Architecture](#architecture)
 - [For Developers / Local Setup](#for-developers--local-setup)
 - [Running Tests](#running-tests)
+- [API Validation](#api-validation)
+- [Extending the Database](#extending-the-database)
 - [Further Reading](#further-reading)
 
 ---
@@ -107,6 +109,13 @@ Getting gene names right is the most common source of errors. WTCell enforces th
 | Nematode (*C. elegans*) | WormBase | Stored as entered | `cep-1` |
 
 The form auto-corrects Human and Mouse capitalization. For all other organisms, symbols are stored exactly as you type them. See [GLOSSARY.md](GLOSSARY.md) for links to each nomenclature authority.
+
+### Gene ID Formats
+
+| Format | Pattern | Example |
+|---|---|---|
+| NCBI Gene ID | Digits only | `916` |
+| Ensembl Gene ID | `ENS[species]G` + 11 digits | `ENSG00000198851` |
 
 ---
 
@@ -206,6 +215,37 @@ Tests cover all gene symbol normalization rules and gene ID format validation. N
 
 ---
 
+## API Validation
+
+When the **offline mode** checkbox is unchecked, the submission form performs live lookups:
+
+- **HGNC symbols** → [HGNC REST API](https://www.genenames.org/tools/rest/) (`rest.genenames.org`)
+- **MGI symbols** → [MyGene.info](https://mygene.info/) (mouse taxon 10090)
+
+The API calls time out gracefully after 8 seconds — if the external service is unreachable the submission proceeds with a warning.
+
+---
+
+## Extending the Database
+
+### Add a new organism
+
+```sql
+INSERT INTO organisms (common_name, scientific_name, ncbi_taxon_id, nomenclature_authority)
+VALUES ('Chicken', 'Gallus gallus', 9031, 'ENTREZ');
+```
+
+### Add a new cell type
+
+Use the **"Add a new cell type"** expander in the Submission Form, or insert directly:
+
+```sql
+INSERT INTO cell_types (standardized_name, cell_ontology_id, aliases)
+VALUES ('Cardiomyocyte', 'CL:0000746', 'heart muscle cell');
+```
+
+---
+
 ## Further Reading
 
 - [SUBMISSION_GUIDE.md](SUBMISSION_GUIDE.md) — Step-by-step guide for bench scientists submitting marker data
@@ -215,3 +255,9 @@ Tests cover all gene symbol normalization rules and gene ID format validation. N
 - [MGI Gene Nomenclature](https://www.informatics.jax.org/) — Official mouse gene symbol lookup
 - [Cell Ontology (CL)](https://obofoundry.org/ontology/cl.html) — Standardized cell type terms
 - [Uberon Anatomy Ontology](https://uberon.github.io/) — Standardized tissue/organ terms
+
+---
+
+## License
+
+MIT
