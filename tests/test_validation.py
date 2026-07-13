@@ -151,10 +151,16 @@ class TestValidateGeneIdFormat:
     def test_float_string(self):
         assert validate_gene_id_format("9.16") is False
 
-    def test_whitespace(self):
+    def test_whitespace_leading(self):
         # validate_gene_id_format strips leading/trailing whitespace, so
         # " 916" is treated as "916" and considered valid.
         assert validate_gene_id_format(" 916") is True
+
+    def test_whitespace_trailing(self):
+        assert validate_gene_id_format("916 ") is True
+
+    def test_whitespace_both_sides(self):
+        assert validate_gene_id_format("  916  ") is True
 
 
 # ===========================================================================

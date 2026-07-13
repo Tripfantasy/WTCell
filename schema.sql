@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS organisms  CASCADE;
 
 -- =============================================================================
 -- Table: organisms
--- Tracks each species tracked in the database, including its nomenclature
+-- Tracks each species in the database, including its nomenclature
 -- authority so that downstream validation logic knows which rules to apply.
 -- =============================================================================
 CREATE TABLE organisms (

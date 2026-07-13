@@ -30,6 +30,7 @@ load_dotenv()
 # Local modules
 import db
 import validation
+from validation import EMAIL_REGEX
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -119,19 +120,23 @@ def render_query_dashboard() -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        organism_options = {"(All organisms)": None} | {
-            f"{o['common_name']} ({o['scientific_name']})": o["organism_id"]
-            for o in organisms
-        }
+        organism_options = dict(
+            [("(All organisms)", None)]
+            + [
+                (f"{o['common_name']} ({o['scientific_name']})", o["organism_id"])
+                for o in organisms
+            ]
+        )
         selected_organism_label = st.selectbox(
             "🦠 Organism", list(organism_options.keys()), index=0
         )
         selected_organism_id: Optional[int] = organism_options[selected_organism_label]
 
     with col2:
-        cell_type_options = {"(All cell types)": None} | {
-            ct["standardized_name"]: ct["cell_type_id"] for ct in cell_types
-        }
+        cell_type_options = dict(
+            [("(All cell types)", None)]
+            + [(ct["standardized_name"], ct["cell_type_id"]) for ct in cell_types]
+        )
         selected_cell_type_label = st.selectbox(
             "🔬 Cell type", list(cell_type_options.keys()), index=0
         )
@@ -447,8 +452,9 @@ def render_submission_form() -> None:
         type="primary",
         disabled=submit_disabled,
     ):
-        # Final email format check (belt-and-braces; the DB also checks)
-        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_input.strip(), re.IGNORECASE):
+        # Final email format check (belt-and-braces; the DB also checks).
+        # Uses EMAIL_REGEX imported from validation.py (safe, no ReDoS risk).
+        if not EMAIL_REGEX.match(email_input.strip()):
             st.error("Please enter a valid email address.")
         else:
             try:

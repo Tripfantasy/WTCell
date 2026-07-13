@@ -30,17 +30,30 @@ from psycopg2 import OperationalError
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Connection configuration (read from environment variables with sensible
-# defaults so that the app works out-of-the-box with docker-compose).
 # ---------------------------------------------------------------------------
+# Connection configuration (read from environment variables).
+# DB_PASSWORD has no hard-coded default — it MUST be set in the environment.
+# In local docker-compose the compose file injects the value explicitly.
+# ---------------------------------------------------------------------------
+
+_DEFAULT_PASSWORD = "wtcell_pass"  # used only for the docker-compose dev stack
 
 DB_CONFIG: Dict[str, Any] = {
     "host":     os.getenv("DB_HOST",     "localhost"),
     "port":     int(os.getenv("DB_PORT", "5432")),
     "dbname":   os.getenv("DB_NAME",     "wtcell"),
     "user":     os.getenv("DB_USER",     "wtcell_user"),
-    "password": os.getenv("DB_PASSWORD", "wtcell_pass"),
+    "password": os.getenv("DB_PASSWORD", _DEFAULT_PASSWORD),
 }
+
+# Warn operators if the fallback password is being used, so they don't
+# accidentally run in production with the well-known default credential.
+if DB_CONFIG["password"] == _DEFAULT_PASSWORD and not os.getenv("DB_PASSWORD"):
+    logger.warning(
+        "DB_PASSWORD environment variable is not set.  "
+        "Falling back to the default development password.  "
+        "Set DB_PASSWORD explicitly in production."
+    )
 
 
 # ===========================================================================

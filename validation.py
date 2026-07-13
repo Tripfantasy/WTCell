@@ -25,6 +25,7 @@ Gene ID validation (applied to all organisms):
   - Exactly one valid ID form is required.
 """
 
+import os
 import re
 import logging
 from typing import Optional, Tuple
@@ -47,11 +48,25 @@ HGNC_HEADERS = {"Accept": "application/json"}
 # MyGene.info API — supports both human and mouse lookups
 MYGENE_API_URL = "https://mygene.info/v3/query"
 
-# Timeout for external API calls (seconds)
-API_TIMEOUT = 8
+# Timeout for external API calls (seconds).
+# 8 s balances responsiveness against slow remote APIs while leaving enough
+# headroom for legitimate round-trips to genenames.org / mygene.info.
+# Override via the API_TIMEOUT_SECONDS environment variable if needed.
+API_TIMEOUT = int(os.getenv("API_TIMEOUT_SECONDS", "8"))
+
+# ---------------------------------------------------------------------------
+# Shared constants — also imported by app.py for consistent validation
+# ---------------------------------------------------------------------------
+
+# Email validation: explicit character-class pattern that avoids catastrophic
+# backtracking (ReDoS).  Checks for a non-empty local part, exactly one '@',
+# a domain with at least one label, and a dot separator.
+EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+)
 
 # Pre-compiled regex patterns for gene ID formats
-_RE_NCBI_GENE_ID   = re.compile(r"^\d+$")
+_RE_NCBI_GENE_ID    = re.compile(r"^\d+$")
 _RE_ENSEMBL_GENE_ID = re.compile(r"^ENS[A-Z]*G\d{11}$")
 
 
@@ -97,6 +112,10 @@ def normalize_gene_symbol(symbol: str, nomenclature_authority: str) -> str:
         # This handles multi-word / hyphenated symbols gracefully by lowercasing
         # the whole string first, then capitalising the very first character.
         normalised = symbol.lower()
+        # Guard: after lowercasing the symbol is guaranteed non-empty (whitespace
+        # was already stripped and emptiness was checked above), but be explicit.
+        if not normalised:
+            raise ValueError("Gene symbol must not be empty.")
         return normalised[0].upper() + normalised[1:]
 
     # For all other authorities (ZFIN, RGD, FlyBase, WormBase …) we return the
