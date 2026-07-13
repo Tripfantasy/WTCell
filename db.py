@@ -32,27 +32,27 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Connection configuration (read from environment variables).
-# DB_PASSWORD has no hard-coded default — it MUST be set in the environment.
-# In local docker-compose the compose file injects the value explicitly.
+# DB_PASSWORD MUST be set in the environment — there is no hard-coded default.
+# The docker-compose.yml injects the value explicitly for the dev stack.
+# If DB_PASSWORD is missing the application will fail to connect and surface
+# a clear OperationalError rather than silently using a known credential.
 # ---------------------------------------------------------------------------
 
-_DEFAULT_PASSWORD = "wtcell_pass"  # used only for the docker-compose dev stack
-
 DB_CONFIG: Dict[str, Any] = {
-    "host":     os.getenv("DB_HOST",     "localhost"),
+    "host":     os.getenv("DB_HOST",  "localhost"),
     "port":     int(os.getenv("DB_PORT", "5432")),
-    "dbname":   os.getenv("DB_NAME",     "wtcell"),
-    "user":     os.getenv("DB_USER",     "wtcell_user"),
-    "password": os.getenv("DB_PASSWORD", _DEFAULT_PASSWORD),
+    "dbname":   os.getenv("DB_NAME",  "wtcell"),
+    "user":     os.getenv("DB_USER",  "wtcell_user"),
+    "password": os.getenv("DB_PASSWORD"),  # required — no default
 }
 
-# Warn operators if the fallback password is being used, so they don't
-# accidentally run in production with the well-known default credential.
-if DB_CONFIG["password"] == _DEFAULT_PASSWORD and not os.getenv("DB_PASSWORD"):
+# Warn operators (not raise) so that Streamlit can display a friendly error
+# on the UI rather than crashing at import time.
+if not DB_CONFIG["password"]:
     logger.warning(
         "DB_PASSWORD environment variable is not set.  "
-        "Falling back to the default development password.  "
-        "Set DB_PASSWORD explicitly in production."
+        "The application will be unable to connect to the database.  "
+        "Set DB_PASSWORD in your .env file or host environment."
     )
 
 

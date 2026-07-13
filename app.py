@@ -503,12 +503,6 @@ def render_sidebar() -> str:
         One of: 'Query Dashboard', 'Submit Marker'.
     """
     with st.sidebar:
-        st.image(
-            "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/"
-            "Cell_membrane_detailed_diagram_en.svg/320px-"
-            "Cell_membrane_detailed_diagram_en.svg.png",
-            use_container_width=True,
-        )
         st.title("🧬 WTCell")
         st.markdown(
             "**Centralized multi-organism**  \n"

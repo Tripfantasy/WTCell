@@ -66,7 +66,7 @@ EMAIL_REGEX = re.compile(
 )
 
 # Pre-compiled regex patterns for gene ID formats
-_RE_NCBI_GENE_ID    = re.compile(r"^\d+$")
+_RE_NCBI_GENE_ID = re.compile(r"^\d+$")
 _RE_ENSEMBL_GENE_ID = re.compile(r"^ENS[A-Z]*G\d{11}$")
 
 
@@ -112,10 +112,6 @@ def normalize_gene_symbol(symbol: str, nomenclature_authority: str) -> str:
         # This handles multi-word / hyphenated symbols gracefully by lowercasing
         # the whole string first, then capitalising the very first character.
         normalised = symbol.lower()
-        # Guard: after lowercasing the symbol is guaranteed non-empty (whitespace
-        # was already stripped and emptiness was checked above), but be explicit.
-        if not normalised:
-            raise ValueError("Gene symbol must not be empty.")
         return normalised[0].upper() + normalised[1:]
 
     # For all other authorities (ZFIN, RGD, FlyBase, WormBase …) we return the

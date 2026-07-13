@@ -172,7 +172,7 @@ VALUES
     ('Mouse',     'Mus musculus',          10090, 'MGI'),
     ('Zebrafish', 'Danio rerio',           7955,  'ZFIN'),
     ('Rat',       'Rattus norvegicus',     10116, 'RGD'),
-    ('Fruit fly', 'Drosophila melanogaster', 7227, 'FlyBase'),
+    ('Fruit Fly', 'Drosophila melanogaster', 7227, 'FlyBase'),
     ('Nematode',  'Caenorhabditis elegans', 6239, 'WormBase');
 
 -- Cell Types ---------------------------------------------------------------
