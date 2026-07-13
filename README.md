@@ -210,7 +210,7 @@ WTCell can be deployed as a public or private app on [Streamlit Community Cloud]
 
 4. **Add secrets** in the Streamlit Cloud dashboard under *App settings → Secrets*. Paste the following, replacing the placeholder value:
    ```toml
-   NEON_DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+   NEON_DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
    ```
    A template is provided in `.streamlit/secrets.toml.example`.
 
