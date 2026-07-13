@@ -13,9 +13,11 @@ WTCell allows research groups to collaboratively submit, standardize, and query 
 - [What Can I Do?](#what-can-i-do)
 - [Submitting Marker Data](#submitting-marker-data)
 - [Querying the Database](#querying-the-database)
+- [Database Summary](#database-summary)
 - [Gene Nomenclature Rules](#gene-nomenclature-rules)
 - [Supported Organisms](#supported-organisms)
 - [Architecture](#architecture)
+- [Deploying to Streamlit Community Cloud](#deploying-to-streamlit-community-cloud)
 - [For Developers / Local Setup](#for-developers--local-setup)
 - [Running Tests](#running-tests)
 - [API Validation](#api-validation)
@@ -48,7 +50,7 @@ No programming experience is required to use the submission form or search dashb
    docker-compose up --build
    ```
 4. Open your browser and go to **http://localhost:8501**
-5. You will see the WTCell dashboard. Use the sidebar to switch between **🔍 Query Dashboard** and **📝 Submit Marker** views.
+5. You will see the WTCell dashboard. Use the sidebar to switch between **🔍 Query Dashboard**, **📝 Submit Marker**, and **📊 Database Summary** views.
 
 > **First run only:** `--build` compiles the app container image. Subsequent starts can use `docker-compose up` without `--build`.
 
@@ -61,6 +63,7 @@ No programming experience is required to use the submission form or search dashb
 | Search for markers by cell type, tissue, or organism | **🔍 Query Dashboard** tab |
 | Submit new marker genes from your experiment | **📝 Submit Marker** tab |
 | Add a new cell type (not in the dropdown) | **📝 Submit Marker → ➕ Add a new cell type** expander |
+| View charts showing database composition | **📊 Database Summary** tab |
 | Download a template CSV to prepare entries offline | `examples/marker_submission_template.csv` |
 | Look up what a term means (e.g. "Cell Ontology ID") | [GLOSSARY.md](GLOSSARY.md) |
 | Troubleshoot a submission error or gene naming issue | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
@@ -75,7 +78,7 @@ The Submission Form is divided into five sections:
 1. **Organism & Cell Type** — select from standardized dropdowns
 2. **Gene Information** — enter the gene symbol and a stable gene ID; the symbol is auto-corrected to the right capitalization for your organism
 3. **Experimental Context** — tissue and sequencing platform
-4. **Provenance** — source reference (PubMed ID, DOI, or internal dataset ID) and your email
+4. **Provenance** — source reference (PubMed ID, DOI, or internal dataset ID), your email, and your lab affiliation
 5. **Validate & Submit** — click **🔎 Validate** first, then **💾 Submit to database** once validation passes
 
 > The two-step flow is intentional: validation checks your gene symbol and ID against official databases *before* writing anything to the database. This catches typos and mismatched organisms early.
@@ -89,9 +92,21 @@ For a detailed walkthrough of every field, see [SUBMISSION_GUIDE.md](SUBMISSION_
 From the **🔍 Query Dashboard**:
 
 - Use the **Organism** dropdown to filter by any supported species.
-- Use the **Cell Type** dropdown to narrow results to a specific cell type.
+- Use the **Cell Type** dropdown to narrow results to a specific cell type. Only cell types that have at least one existing marker entry appear here — if your cell type is missing, use the **Submit Marker** page to contribute the first entry.
 - Use the **Tissue** free-text box to search by tissue name or UBERON term.
 - Results appear as a sortable table. Leave all filters blank to show all records.
+
+---
+
+## Database Summary
+
+The **📊 Database Summary** page shows three interactive pie charts:
+
+- **Entries by Organism** — how many markers are recorded for each species
+- **Entries by Cell Type** — breakdown across cell type categories
+- **Entries by Tissue** — distribution of tissue contexts
+
+Charts update automatically every 5 minutes.
 
 ---
 
@@ -132,11 +147,13 @@ WTCell/
 ├── schema.sql          # PostgreSQL schema + seed data
 ├── db.py               # Database connection & query helpers
 ├── validation.py       # Gene symbol normalisation & ID validation
-├── app.py              # Streamlit UI (Query Dashboard + Submission Form)
+├── app.py              # Streamlit UI (Query Dashboard + Submission Form + Summary)
 ├── requirements.txt    # Python dependencies
 ├── Dockerfile          # Container image for the Streamlit app
 ├── docker-compose.yml  # Full stack: PostgreSQL 16 + Streamlit
-├── .env.example        # Environment variable template
+├── .env.example        # Environment variable template (local / Docker)
+├── .streamlit/
+│   └── secrets.toml.example  # Secrets template for Streamlit Community Cloud
 ├── tests/
 │   └── test_validation.py  # Unit tests (no DB or network required)
 ├── SUBMISSION_GUIDE.md # Step-by-step guide for bench scientists
@@ -170,8 +187,40 @@ nomenclature_authority
                platform
                submission_source
                submitter_email
+               lab_affiliation  ← submitter's lab or institution
                date_submitted
 ```
+
+---
+
+## Deploying to Streamlit Community Cloud
+
+WTCell can be deployed as a public or private app on [Streamlit Community Cloud](https://streamlit.io/cloud) using a remote PostgreSQL database (e.g., Supabase, Railway, or your institution's server).
+
+### Steps
+
+1. **Push this repository to GitHub** (or fork it).
+
+2. **Create a remote PostgreSQL database** and run `schema.sql` against it:
+   ```bash
+   psql -h <host> -U <user> -d <dbname> -f schema.sql
+   ```
+
+3. **Deploy the app** on Streamlit Community Cloud by connecting your GitHub repository. Set the main file to `app.py`.
+
+4. **Add secrets** in the Streamlit Cloud dashboard under *App settings → Secrets*. Paste the following, replacing the placeholder values:
+   ```toml
+   DB_HOST     = "your-postgres-host"
+   DB_PORT     = "5432"
+   DB_NAME     = "wtcell"
+   DB_USER     = "wtcell_user"
+   DB_PASSWORD = "your-secure-password"
+   ```
+   A template is provided in `.streamlit/secrets.toml.example`.
+
+5. **Redeploy** (or Streamlit Cloud will pick up the secrets on the next run). The app reads secrets automatically — no code changes required.
+
+> **Security note:** Never commit `.streamlit/secrets.toml` to version control. It is listed in `.gitignore` for this reason. Only commit the `.example` template.
 
 ---
 
@@ -202,6 +251,14 @@ streamlit run app.py
 ```
 
 All database configuration is driven by environment variables (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`). There is no hard-coded password. If `DB_PASSWORD` is unset the application will warn and fail to connect.
+
+### Migrating an existing database
+
+If you already have a WTCell database from a previous version, add the `lab_affiliation` column with:
+
+```sql
+ALTER TABLE markers ADD COLUMN IF NOT EXISTS lab_affiliation VARCHAR(200);
+```
 
 ---
 

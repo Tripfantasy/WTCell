@@ -555,7 +555,8 @@ def _make_pie(data: List[Dict], value_key: str, name_key: str, title: str, top_n
     top = data[:top_n]
     other_count = sum(r[value_key] for r in data[top_n:])
     if other_count:
-        top = top + [{name_key: "Other", value_key: other_count}]
+        top = list(top)
+        top.append({name_key: "Other", value_key: other_count})
 
     df = pd.DataFrame(top)
     fig = px.pie(
@@ -621,7 +622,7 @@ def render_summary() -> None:
     st.divider()
     st.caption(
         "Charts show up to the 12 most common values; remaining entries are grouped as 'Other'.  "
-        "Data refreshes automatically every 5 minutes."
+        "Data is cached and refreshes every 5 minutes when the page is accessed."
     )
 
 

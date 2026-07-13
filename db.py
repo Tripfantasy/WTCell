@@ -184,10 +184,12 @@ def fetch_cell_types_with_markers() -> List[Dict]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT DISTINCT ct.cell_type_id, ct.standardized_name,
-                            ct.cell_ontology_id, ct.aliases
+            SELECT ct.cell_type_id, ct.standardized_name,
+                   ct.cell_ontology_id, ct.aliases
             FROM   cell_types ct
-            JOIN   markers    m  ON m.cell_type_id = ct.cell_type_id
+            WHERE  EXISTS (
+                SELECT 1 FROM markers m WHERE m.cell_type_id = ct.cell_type_id
+            )
             ORDER  BY ct.standardized_name
             """
         )
@@ -402,7 +404,7 @@ def fetch_database_stats() -> Dict:
 
         cur.execute(
             """
-            SELECT COALESCE(tissue, 'Not specified') AS tissue, COUNT(*) AS count
+            SELECT COALESCE(tissue, 'Unspecified') AS tissue, COUNT(*) AS count
             FROM   markers
             GROUP  BY tissue
             ORDER  BY count DESC
