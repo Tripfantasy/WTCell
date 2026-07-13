@@ -130,6 +130,11 @@ CREATE TABLE markers (
     submitter_email     VARCHAR(254) NOT NULL
                             CHECK (submitter_email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
 
+    -- Lab or institutional affiliation of the submitter (e.g. "Smith Lab",
+    -- "Department of Immunology, University of Example").
+    -- Optional but strongly recommended for cross-lab traceability.
+    lab_affiliation     VARCHAR(200),
+
     -- Date the record was written to the database.
     -- Defaults to the current date; can be overridden for bulk imports.
     date_submitted      DATE        NOT NULL DEFAULT CURRENT_DATE,

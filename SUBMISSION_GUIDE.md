@@ -34,6 +34,7 @@ Gather the following for each marker gene you want to submit:
 - [ ] The **tissue or organ** where this marker was identified (e.g., `peripheral blood`, `lung`)
 - [ ] The **sequencing platform** used (e.g., `10x Chromium v3`, `Smart-seq2`)
 - [ ] A **reference** — either `PMID:` followed by the PubMed ID (e.g., `PMID:31327801`), a DOI (e.g., `doi:10.1038/s41586-020-2277-x`), or an internal dataset identifier
+- [ ] Your **lab affiliation** (optional but recommended — e.g., `Smith Lab`)
 
 If you are unsure about any field, see [GLOSSARY.md](GLOSSARY.md) for plain-language definitions.
 
@@ -172,6 +173,12 @@ If you are submitting unpublished data, use a consistent internal ID so entries 
 **Submitter email** *(required)*
 
 Enter your institutional email address (e.g., `researcher@institution.edu`). This is used to contact you if there is a question about your submission — it is not displayed publicly.
+
+**Lab affiliation** *(optional)*
+
+Enter the name of your lab or institution (e.g., `Smith Lab`, `Department of Immunology, University of Example`). This field is not required but is strongly recommended so entries can be traced back to their source lab and cross-lab collaboration is easier.
+
+> If you are submitting data on behalf of a lab, use that lab's name rather than your own.
 
 ---
 

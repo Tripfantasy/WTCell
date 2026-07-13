@@ -15,8 +15,9 @@ venv/
 env/
 ENV/
 
-# Secrets — never commit the filled-in .env
+# Secrets — never commit the filled-in .env or Streamlit secrets
 .env
+.streamlit/secrets.toml
 
 # Pytest cache
 .pytest_cache/
