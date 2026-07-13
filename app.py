@@ -106,9 +106,8 @@ def check_db_connection() -> bool:
         return True
     st.error(
         "⚠️  **Cannot reach the database.**  "
-        "Please check the connection settings in your `.env` file "
-        "(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD) "
-        "and ensure PostgreSQL is running."
+        "Please verify that `NEON_DATABASE_URL` is set correctly in your "
+        "Streamlit secrets (or local `.env` file) and that the Neon host is reachable."
     )
     return False
 
