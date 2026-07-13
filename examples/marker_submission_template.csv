@@ -1,10 +1,11 @@
-organism,cell_type_name,gene_symbol,ncbi_gene_id,ensembl_id,tissue,platform,submission_source,submitter_email
-Human,T cell,CD3E,916,ENSG00000198851,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Human,T cell,CD8A,925,ENSG00000153563,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Human,natural killer cell,NCAM1,4684,ENSG00000149294,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Human,B cell,MS4A1,931,ENSG00000156738,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Human,alveolar macrophage,MARCO,8685,ENSG00000019169,lung,10x Chromium v3,Smith_Lab_Lung_2024,researcher@institution.edu
-Mouse,T cell,Cd3e,12501,ENSMUSG00000006368,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Mouse,T cell,Cd8a,12525,ENSMUSG00000053977,peripheral blood,10x Chromium v3,32214231,researcher@institution.edu
-Mouse,natural killer cell,Ncam1,17967,ENSMUSG00000022995,spleen,Smart-seq2,Jones_Lab_Spleen_2023,researcher@institution.edu
-Mouse,B cell,Ms4a1,12482,ENSMUSG00000024673,bone marrow,10x Chromium v3,29451492,researcher@institution.edu
+organism,cell_type,gene_symbol,gene_id,tissue,platform,submission_source,submitter_email
+Human,T cell,CD3E,916,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Human,T cell,CD8A,925,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Human,Natural killer cell,NCAM1,4684,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Human,B cell,MS4A1,931,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Human,Macrophage,MARCO,8685,lung,10x Chromium v3,Smith_Lab_Lung_2024,researcher@institution.edu
+Mouse,T cell,Cd3e,12501,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Mouse,T cell,Cd8a,12525,peripheral blood,10x Chromium v3,PMID:31327801,researcher@institution.edu
+Mouse,Natural killer cell,Ncam1,17967,spleen,Smart-seq2,Jones_Lab_Spleen_2023,researcher@institution.edu
+Mouse,B cell,Ms4a1,12482,bone marrow,10x Chromium v3,PMID:29451492,researcher@institution.edu
+Zebrafish,T cell,cd3e,100006214,peripheral blood,10x Chromium v3,doi:10.1016/j.celrep.2020.01.115,researcher@institution.edu
