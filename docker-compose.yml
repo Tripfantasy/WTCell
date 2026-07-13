@@ -1,0 +1,62 @@
+# WTCell — Docker Compose stack
+# Spins up a PostgreSQL 16 database, initialises it with schema.sql, and
+# starts the Streamlit application.
+#
+# Quick start:
+#   docker-compose up --build
+#
+# The Streamlit UI will be available at http://localhost:8501
+
+version: "3.9"
+
+services:
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL 16 database
+  # --------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: wtcell_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       wtcell
+      POSTGRES_USER:     wtcell_user
+      POSTGRES_PASSWORD: wtcell_pass
+    volumes:
+      # Persist database data across container restarts
+      - wtcell_pgdata:/var/lib/postgresql/data
+      # Run schema.sql automatically on first start
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      # Expose port 5432 on the host for direct psql access (optional)
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wtcell_user -d wtcell"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # Streamlit application
+  # --------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wtcell_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST:     db
+      DB_PORT:     5432
+      DB_NAME:     wtcell
+      DB_USER:     wtcell_user
+      DB_PASSWORD: wtcell_pass
+    ports:
+      - "8501:8501"
+
+volumes:
+  wtcell_pgdata:
+    driver: local
