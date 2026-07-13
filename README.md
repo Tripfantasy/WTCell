@@ -208,13 +208,9 @@ WTCell can be deployed as a public or private app on [Streamlit Community Cloud]
 
 3. **Deploy the app** on Streamlit Community Cloud by connecting your GitHub repository. Set the main file to `app.py`.
 
-4. **Add secrets** in the Streamlit Cloud dashboard under *App settings → Secrets*. Paste the following, replacing the placeholder values:
+4. **Add secrets** in the Streamlit Cloud dashboard under *App settings → Secrets*. Paste the following, replacing the placeholder value:
    ```toml
-   DB_HOST     = "your-postgres-host"
-   DB_PORT     = "5432"
-   DB_NAME     = "wtcell"
-   DB_USER     = "wtcell_user"
-   DB_PASSWORD = "your-secure-password"
+   NEON_DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
    ```
    A template is provided in `.streamlit/secrets.toml.example`.
 
