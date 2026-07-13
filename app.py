@@ -3,14 +3,15 @@ app.py
 ======
 WTCell — Streamlit front-end application.
 
-Two main views (selected via the sidebar):
+Three main views (selected via the sidebar):
   1. Query Dashboard  — searchable, filterable table of all marker records.
-  2. Submission Form  — structured form for adding new validated marker genes.
+  2. Submit Marker    — structured form for adding new validated marker genes.
+  3. Database Summary — charts showing the composition of the database.
 
 Run with:
     streamlit run app.py
 
-Environment variables (see .env.example):
+Environment variables (see .env.example or .streamlit/secrets.toml.example):
   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 """
 
@@ -26,6 +27,23 @@ from dotenv import load_dotenv
 # Load environment variables from .env file (if present).
 # In production deployments the variables should be injected by the host.
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Streamlit Community Cloud: inject st.secrets into env vars so that db.py
+# picks them up without needing to import streamlit itself.  This runs before
+# any db call is made.  If st.secrets is unavailable (e.g., running locally
+# without a secrets file), the try/except silently falls back to the env vars
+# already populated by load_dotenv() above.
+# ---------------------------------------------------------------------------
+try:
+    _SCC_KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
+    for _k in _SCC_KEYS:
+        if not os.getenv(_k) and _k in st.secrets:
+            os.environ[_k] = str(st.secrets[_k])
+except Exception:
+    pass
+
+import plotly.express as px
 
 # Local modules
 import db
@@ -70,6 +88,12 @@ def load_cell_types() -> List[Dict]:
     return db.fetch_all_cell_types()
 
 
+@st.cache_data(ttl=300)
+def load_cell_types_with_markers() -> List[Dict]:
+    """Load only cell types that have at least one marker entry."""
+    return db.fetch_cell_types_with_markers()
+
+
 # ===========================================================================
 # Helper: DB connectivity check
 # ===========================================================================
@@ -102,7 +126,7 @@ def render_query_dashboard() -> None:
     Provides dropdown filters for organism and cell type, plus a free-text
     tissue search field.  Results are displayed in a sortable Pandas DataFrame.
     """
-    st.header("🔍 Query Dashboard")
+    st.header("Query Dashboard")
     st.markdown(
         "Search and filter the WTCell marker database.  "
         "Leave filters blank to show all records."
@@ -110,7 +134,7 @@ def render_query_dashboard() -> None:
 
     # --- Load reference data ------------------------------------------------
     organisms  = load_organisms()
-    cell_types = load_cell_types()
+    cell_types = load_cell_types_with_markers()
 
     if not organisms:
         st.warning("No organisms found in the database.  Run `schema.sql` to seed data.")
@@ -128,7 +152,7 @@ def render_query_dashboard() -> None:
             ]
         )
         selected_organism_label = st.selectbox(
-            "🦠 Organism", list(organism_options.keys()), index=0
+            "Organism", list(organism_options.keys()), index=0
         )
         selected_organism_id: Optional[int] = organism_options[selected_organism_label]
 
@@ -138,15 +162,26 @@ def render_query_dashboard() -> None:
             + [(ct["standardized_name"], ct["cell_type_id"]) for ct in cell_types]
         )
         selected_cell_type_label = st.selectbox(
-            "🔬 Cell type", list(cell_type_options.keys()), index=0
+            "Cell type", list(cell_type_options.keys()), index=0,
+            help=(
+                "Only cell types with existing marker entries are listed here.  "
+                "To add markers for a different cell type, use the Submit Marker page."
+            ),
         )
         selected_cell_type_id: Optional[int] = cell_type_options[selected_cell_type_label]
 
     with col3:
         tissue_query = st.text_input(
-            "🫀 Tissue (free text or UBERON term)",
+            "Tissue (free text or UBERON term)",
             placeholder="e.g. blood, UBERON:0002371",
         )
+
+    if not cell_types:
+        st.info(
+            "No marker entries found in the database yet.  "
+            "Be the first to contribute — use the **Submit Marker** page in the sidebar."
+        )
+        return
 
     # --- Execute query -------------------------------------------------------
     with st.spinner("Fetching markers …"):
@@ -163,7 +198,11 @@ def render_query_dashboard() -> None:
 
     # --- Results table -------------------------------------------------------
     if not rows:
-        st.info("No markers match the current filters.")
+        st.info(
+            "No markers match the current filters.  "
+            "If your cell type of interest is not in the dropdown, "
+            "submit new markers via the **Submit Marker** page."
+        )
         return
 
     # Convert list-of-dicts to a DataFrame and rename columns for display.
@@ -183,6 +222,7 @@ def render_query_dashboard() -> None:
             "platform":               "Platform",
             "submission_source":      "Source",
             "submitter_email":        "Submitted By",
+            "lab_affiliation":        "Lab",
             "date_submitted":         "Date",
         }
     )
@@ -225,7 +265,7 @@ def render_submission_form() -> None:
        c. (Optionally) queries the HGNC / MGI / MyGene.info API.
     4. If all checks pass, **Submit to database** becomes available.
     """
-    st.header("📝 Submit Marker Gene")
+    st.header("Submit Marker Gene")
     st.markdown(
         "Add a new experimentally validated or literature-supported marker gene "
         "to the WTCell database.  All fields marked **\\*** are required."
@@ -265,7 +305,7 @@ def render_submission_form() -> None:
     # Show which nomenclature authority will be applied
     authority = selected_organism["nomenclature_authority"]
     st.caption(
-        f"ℹ️  Nomenclature authority for **{selected_organism['common_name']}**: "
+        f"Nomenclature authority for **{selected_organism['common_name']}**: "
         f"**{authority}**.  "
         + (
             "Gene symbols will be converted to **ALL UPPERCASE**."
@@ -352,6 +392,14 @@ def render_submission_form() -> None:
         email_input = st.text_input(
             "Submitter email *",
             placeholder="researcher@institution.edu",
+        )
+
+    col_affil, _ = st.columns(2)
+    with col_affil:
+        lab_affiliation_input = st.text_input(
+            "Lab affiliation",
+            placeholder="e.g. Smith Lab, Dept. of Immunology",
+            help="Your lab or institutional affiliation. Optional but recommended for cross-lab traceability.",
         )
 
     st.divider()
@@ -467,6 +515,7 @@ def render_submission_form() -> None:
                     platform=platform_input.strip() or None,
                     submission_source=source_input.strip() or None,
                     submitter_email=email_input.strip(),
+                    lab_affiliation=lab_affiliation_input.strip() or None,
                 )
                 st.success(
                     f"🎉 Marker successfully submitted!  "
@@ -490,6 +539,93 @@ def render_submission_form() -> None:
 
 
 # ===========================================================================
+# View 3 — Database Summary
+# ===========================================================================
+
+def _make_pie(data: List[Dict], value_key: str, name_key: str, title: str, top_n: int = 12):
+    """
+    Build a Plotly pie chart from a list of {name_key: …, value_key: count} dicts.
+
+    Rows beyond *top_n* are collapsed into an "Other" slice.
+    Returns None when *data* is empty.
+    """
+    if not data:
+        return None
+
+    top = data[:top_n]
+    other_count = sum(r[value_key] for r in data[top_n:])
+    if other_count:
+        top = top + [{name_key: "Other", value_key: other_count}]
+
+    df = pd.DataFrame(top)
+    fig = px.pie(
+        df,
+        names=name_key,
+        values=value_key,
+        title=title,
+        hole=0.3,
+    )
+    fig.update_traces(textposition="inside", textinfo="percent+label")
+    fig.update_layout(showlegend=False, margin=dict(t=40, b=0, l=0, r=0))
+    return fig
+
+
+def render_summary() -> None:
+    """
+    Render the Database Summary page with pie charts showing the composition
+    of all marker entries by organism, cell type, and tissue.
+    """
+    st.header("Database Summary")
+    st.markdown(
+        "An overview of the marker entries currently held in the WTCell database, "
+        "broken down by organism, cell type, and tissue."
+    )
+
+    with st.spinner("Loading statistics …"):
+        try:
+            stats = db.fetch_database_stats()
+        except Exception as exc:
+            st.error(f"Could not load statistics: {exc}")
+            logger.exception("fetch_database_stats error")
+            return
+
+    total = sum(r["count"] for r in stats["by_organism"]) if stats["by_organism"] else 0
+
+    if total == 0:
+        st.info(
+            "No marker entries found in the database yet.  "
+            "Use the **Submit Marker** page to contribute the first record."
+        )
+        return
+
+    st.metric("Total marker entries", total)
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        fig = _make_pie(stats["by_organism"], "count", "organism", "Entries by Organism")
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        fig = _make_pie(stats["by_cell_type"], "count", "cell_type", "Entries by Cell Type")
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+
+    with col3:
+        fig = _make_pie(stats["by_tissue"], "count", "tissue", "Entries by Tissue")
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+    st.caption(
+        "Charts show up to the 12 most common values; remaining entries are grouped as 'Other'.  "
+        "Data refreshes automatically every 5 minutes."
+    )
+
+
+# ===========================================================================
 # Sidebar navigation
 # ===========================================================================
 
@@ -500,7 +636,7 @@ def render_sidebar() -> str:
     Returns
     -------
     str
-        One of: 'Query Dashboard', 'Submit Marker'.
+        One of: 'Query Dashboard', 'Submit Marker', 'Database Summary'.
     """
     with st.sidebar:
         st.title("🧬 WTCell")
@@ -513,7 +649,7 @@ def render_sidebar() -> str:
 
         page = st.radio(
             "Navigate",
-            ["🔍 Query Dashboard", "📝 Submit Marker"],
+            ["🔍 Query Dashboard", "📝 Submit Marker", "📊 Database Summary"],
             label_visibility="collapsed",
         )
 
@@ -550,6 +686,8 @@ def main() -> None:
         render_query_dashboard()
     elif page == "📝 Submit Marker":
         render_submission_form()
+    elif page == "📊 Database Summary":
+        render_summary()
 
 
 if __name__ == "__main__":
