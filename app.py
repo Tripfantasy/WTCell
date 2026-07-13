@@ -12,7 +12,7 @@ Run with:
     streamlit run app.py
 
 Environment variables (see .env.example or .streamlit/secrets.toml.example):
-  DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+  NEON_DATABASE_URL
 """
 
 import os
@@ -36,10 +36,8 @@ load_dotenv()
 # already populated by load_dotenv() above.
 # ---------------------------------------------------------------------------
 try:
-    _SCC_KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
-    for _k in _SCC_KEYS:
-        if not os.getenv(_k) and _k in st.secrets:
-            os.environ[_k] = str(st.secrets[_k])
+    if not os.getenv("NEON_DATABASE_URL") and "NEON_DATABASE_URL" in st.secrets:
+        os.environ["NEON_DATABASE_URL"] = str(st.secrets["NEON_DATABASE_URL"])
 except Exception:
     pass
 
