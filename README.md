@@ -1,4 +1,4 @@
-# WTCell 🧬
+# WTCell (What the Cell?)
 
 **A centralized, multi-organism database for standardized scRNA-seq cell type markers.**
 
