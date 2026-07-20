@@ -201,7 +201,7 @@ def query_gene_literature(
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,        # low temperature → more deterministic, less confabulation
+        temperature=0.1,        # low temperature → more deterministic, less hallucination
         response_format={"type": "json_object"},
         timeout=_AGENT_TIMEOUT,
     )

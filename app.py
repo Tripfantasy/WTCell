@@ -117,6 +117,18 @@ def check_db_connection() -> bool:
 # View 1 — Query Dashboard
 # ===========================================================================
 
+def _has_literature_score(row: Dict) -> bool:
+    """Return True if the row has a non-null literature score."""
+    score = row.get("Lit. Score")
+    if score is None:
+        return False
+    try:
+        import math
+        return not math.isnan(float(score))
+    except (TypeError, ValueError):
+        return False
+
+
 def render_query_dashboard() -> None:
     """
     Render the searchable marker query dashboard.
@@ -303,10 +315,7 @@ def render_query_dashboard() -> None:
             )
             _selected_row = _check_options[_selected_label]
 
-            _already_scored = _selected_row.get("Lit. Score") is not None and not (
-                isinstance(_selected_row.get("Lit. Score"), float)
-                and pd.isna(_selected_row["Lit. Score"])
-            )
+            _already_scored = _has_literature_score(_selected_row)
             if _already_scored:
                 st.caption(
                     f"Current score: **{_selected_row['Lit. Score']:.2f}** — "
