@@ -45,6 +45,7 @@ import plotly.express as px
 
 # Local modules
 import db
+import agent
 import validation
 from validation import EMAIL_REGEX
 
@@ -205,6 +206,9 @@ def render_query_dashboard() -> None:
     # Convert list-of-dicts to a DataFrame and rename columns for display.
     df = pd.DataFrame(rows)
 
+    # Keep internal columns needed for the literature check but not for display.
+    _internal_cols = ["cell_type_aliases", "literature_summary"]
+
     # Human-friendly column headers
     df = df.rename(
         columns={
@@ -221,28 +225,162 @@ def render_query_dashboard() -> None:
             "submitter_email":        "Submitted By",
             "lab_affiliation":        "Lab",
             "date_submitted":         "Date",
+            "literature_score":       "Lit. Score",
         }
     )
 
+    # Columns to hide from the display table (internal data kept in df).
+    display_df = df.drop(columns=[c for c in _internal_cols if c in df.columns])
+
     st.markdown(f"**{len(df)} marker(s) found.**")
     st.dataframe(
-        df,
+        display_df,
         use_container_width=True,
         hide_index=True,
         column_config={
             "ID": st.column_config.NumberColumn(width="small"),
             "Date": st.column_config.DateColumn(format="YYYY-MM-DD"),
+            "Lit. Score": st.column_config.ProgressColumn(
+                label="Lit. Score",
+                help=(
+                    "Literature confidence score (0 – 1).  "
+                    "Measures how well published literature supports this gene "
+                    "as a marker for the annotated cell type.  "
+                    "Click '📖 View Literature Summary' below to see details."
+                ),
+                min_value=0.0,
+                max_value=1.0,
+                format="%.2f",
+            ),
         },
     )
 
     # --- Download button -----------------------------------------------------
-    csv = df.to_csv(index=False).encode("utf-8")
+    csv = display_df.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="⬇️  Download as CSV",
         data=csv,
         file_name="wtcell_markers.csv",
         mime="text/csv",
     )
+
+    st.divider()
+
+    # --- Literature confidence section ---------------------------------------
+    st.subheader("🔬 Literature Confidence Scores")
+    st.markdown(
+        "The literature confidence score reflects how well published scientific "
+        "literature supports each gene as a marker for its annotated cell type.  \n"
+        "The analysis queries **only the gene symbol and organism** — the cell-type "
+        "annotation is never shown to the model, preventing confirmation bias.  \n"
+        "After the literature search the result is compared against the database "
+        "annotation to produce the score."
+    )
+
+    lit_col1, lit_col2 = st.columns([1, 1])
+
+    # --- Run literature check ------------------------------------------------
+    with lit_col1:
+        st.markdown("**Run a literature check**")
+
+        _agent_ready = agent.openai_available()
+        if not _agent_ready:
+            st.info(
+                "ℹ️  Literature checks require an OpenAI API key.  "
+                "Set `OPENAI_API_KEY` in your `.env` file or Streamlit secrets "
+                "to enable this feature."
+            )
+        else:
+            # Build options for the selectbox: show "ID — Gene (Organism)" labels.
+            _check_options = {
+                f"{r['ID']} — {r['Gene Symbol']} ({r['Organism']})": r
+                for r in df.to_dict("records")
+            }
+            _selected_label = st.selectbox(
+                "Select a marker to check",
+                list(_check_options.keys()),
+                key="lit_check_select",
+            )
+            _selected_row = _check_options[_selected_label]
+
+            _already_scored = _selected_row.get("Lit. Score") is not None and not (
+                isinstance(_selected_row.get("Lit. Score"), float)
+                and pd.isna(_selected_row["Lit. Score"])
+            )
+            if _already_scored:
+                st.caption(
+                    f"Current score: **{_selected_row['Lit. Score']:.2f}** — "
+                    "re-running will overwrite this value."
+                )
+
+            if st.button("🔬 Run Literature Check", type="secondary"):
+                # Retrieve the original (pre-rename) row data for the check.
+                _orig_row = next(
+                    r for r in rows if r["marker_id"] == _selected_row["ID"]
+                )
+                with st.spinner(
+                    f"Searching literature for **{_orig_row['gene_symbol']}** "
+                    f"({_orig_row['organism']}) …  This may take up to 30 s."
+                ):
+                    try:
+                        _score, _summary = agent.run_literature_check(
+                            marker_id=_orig_row["marker_id"],
+                            gene_symbol=_orig_row["gene_symbol"],
+                            organism_name=_orig_row["organism"],
+                            cell_type=_orig_row["cell_type"],
+                            cell_type_aliases=_orig_row.get("cell_type_aliases"),
+                        )
+                        db.update_marker_literature_score(
+                            _orig_row["marker_id"], _score, _summary
+                        )
+                        st.success(
+                            f"✅ Score updated: **{_score:.2f}** "
+                            f"({agent._score_label(_score)})  \n"
+                            "Rerun the query to see the updated value in the table."
+                        )
+                    except RuntimeError as exc:
+                        st.error(f"Configuration error: {exc}")
+                    except Exception as exc:
+                        st.error(f"Literature check failed: {exc}")
+                        logger.exception("run_literature_check error")
+
+    # --- View literature summary ---------------------------------------------
+    with lit_col2:
+        st.markdown("**View a literature summary**")
+
+        # Only show entries that have already been scored.
+        _scored_rows = [
+            r for r in df.to_dict("records")
+            if r.get("Lit. Score") is not None
+            and not (isinstance(r.get("Lit. Score"), float) and pd.isna(r["Lit. Score"]))
+        ]
+
+        if not _scored_rows:
+            st.info(
+                "No literature summaries available yet for the current results.  "
+                "Use **Run a literature check** to generate one."
+            )
+        else:
+            _summary_options = {
+                f"{r['ID']} — {r['Gene Symbol']} ({r['Organism']}) · score {r['Lit. Score']:.2f}": r
+                for r in _scored_rows
+            }
+            _summary_label = st.selectbox(
+                "Select a scored entry",
+                list(_summary_options.keys()),
+                key="lit_summary_select",
+            )
+            _summary_row = _summary_options[_summary_label]
+
+            with st.expander("📖 Literature Summary", expanded=True):
+                _orig_summary_row = next(
+                    r for r in rows if r["marker_id"] == _summary_row["ID"]
+                )
+                _stored_summary = _orig_summary_row.get("literature_summary") or ""
+                if _stored_summary:
+                    st.markdown(_stored_summary)
+                else:
+                    st.info("No summary text stored for this entry.")
 
 
 # ===========================================================================
@@ -679,6 +817,13 @@ def main() -> None:
     # message rather than a cryptic psycopg2 traceback.
     if not check_db_connection():
         return
+
+    # Ensure the literature score columns exist (idempotent migration for
+    # databases created before the literature confidence feature was added).
+    try:
+        db.ensure_literature_columns()
+    except Exception as exc:
+        logger.warning("Could not run literature column migration: %s", exc)
 
     if page == "🔍 Query Dashboard":
         render_query_dashboard()

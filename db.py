@@ -163,6 +163,7 @@ def fetch_markers(
             o.nomenclature_authority,
             ct.standardized_name     AS cell_type,
             ct.cell_ontology_id,
+            ct.aliases               AS cell_type_aliases,
             m.gene_symbol,
             m.gene_id,
             m.tissue,
@@ -170,7 +171,9 @@ def fetch_markers(
             m.submission_source,
             m.submitter_email,
             m.lab_affiliation,
-            m.date_submitted
+            m.date_submitted,
+            m.literature_score,
+            m.literature_summary
         FROM markers m
         JOIN organisms  o  ON o.organism_id  = m.organism_id
         JOIN cell_types ct ON ct.cell_type_id = m.cell_type_id
@@ -282,3 +285,54 @@ def insert_marker(
         )
         row = cur.fetchone()
         return row["marker_id"]
+
+
+def update_marker_literature_score(
+    marker_id: int,
+    score: float,
+    summary: str,
+) -> None:
+    """
+    Persist the literature confidence score and summary for a marker record.
+
+    Parameters
+    ----------
+    marker_id : int
+        The marker to update.
+    score : float
+        Similarity score in [0.0, 1.0] from the literature agent.
+    summary : str
+        Markdown-formatted summary of the agent's reasoning.
+    """
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            UPDATE markers
+               SET literature_score   = %s,
+                   literature_summary = %s
+             WHERE marker_id = %s
+            """,
+            (score, summary, marker_id),
+        )
+
+
+def ensure_literature_columns() -> None:
+    """
+    Add ``literature_score`` and ``literature_summary`` columns to the
+    ``markers`` table if they do not already exist.
+
+    This is a safe, idempotent migration for databases created before the
+    literature confidence feature was added.  New installations that run
+    ``schema.sql`` in full already have these columns and this function
+    becomes a no-op.
+    """
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            ALTER TABLE markers
+                ADD COLUMN IF NOT EXISTS literature_score   FLOAT
+                    CHECK (literature_score IS NULL
+                           OR (literature_score >= 0 AND literature_score <= 1)),
+                ADD COLUMN IF NOT EXISTS literature_summary TEXT
+            """
+        )

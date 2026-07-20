@@ -139,6 +139,20 @@ CREATE TABLE markers (
     -- Defaults to the current date; can be overridden for bulk imports.
     date_submitted      DATE        NOT NULL DEFAULT CURRENT_DATE,
 
+    -- Agentic literature confidence score (0.0 – 1.0).
+    -- NULL means the literature check has not been run for this entry.
+    -- Populated by the in-app literature search agent, which queries only the
+    -- gene symbol and organism (no cell-type metadata) to avoid confirmation
+    -- bias, then computes similarity against the stored annotation.
+    literature_score    FLOAT       CHECK (
+                            literature_score IS NULL
+                            OR (literature_score >= 0 AND literature_score <= 1)
+                        ),
+
+    -- Free-text summary produced by the literature search agent.
+    -- Stores the agent's reasoning and evidence so users can inspect it.
+    literature_summary  TEXT,
+
     -- Prevent exact duplicate submissions (same gene in the same organism /
     -- cell-type / tissue / platform combination).
     UNIQUE (organism_id, cell_type_id, gene_symbol, tissue, platform)
